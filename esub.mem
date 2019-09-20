@@ -5,7 +5,8 @@
 
 # esub.mem is used when configured to be used by enabled LSB_ESUB_METHOD=mem in lsf.conf 
 # This esub.mem is intended to check if bsub submission string has rusage memory reservation (-R [mem=xx]) and/or memory limit (-M).
-# This script will reject submission if submission string does not specify -M xx and/or -R "rusage[mem=xx]" and REJ is set to Y. If reject is set to N its is important to set DMR and DML# If only -R "rusage[mem=xx]" specified -M will be set automatically to 25% more than -R given MFACT is set to 1.25 (.25 equals 25%)
+# This script will reject submission if submission string does not specify -M xx and/or -R "rusage[mem=xx]" and REJ is set to Y. If reject is set to N its is important to set DMR and DML
+# If only -R "rusage[mem=xx]" specified -M will be set automatically to 25% more than -R given MFACT is set to 1.25 (.25 equals 25%)
 # If only -M is set this value will be set to -R automatically and -M will be updated to 25% more than requested given MFACT is set to 1.25 (.25 equals 25%)
 # If both -R and -M is set -M is updated to 25% more than -R given MFACT is set to 1.25 (.25 equals 25%) and OVER is set to Y 
 
@@ -14,7 +15,7 @@
 # This is still Alpha code and a recommendation only for admins to improve LSF external job control capabilities
 # This code may not be used on production environment
 
-
+# Import parameter file
 . $LSB_SUB_PARM_FILE
 
 # Redirect stderr to stdout so echo can be used for error messages
