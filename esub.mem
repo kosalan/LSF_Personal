@@ -21,6 +21,19 @@
 # Redirect stderr to stdout so echo can be used for error messages
 exec 1>&2
 
+# Memory Limit Increasing Factor (Default: 25% more than rusage). If you want to change to 10% set MFACT to 1.10. To leave it as it is set to 1.00
+MFACT=1.25
+
+# Reject Jobs if Memlimit or Mem Reservation not specified. Set REJ to N. Default REJ=Y
+REJ=N
+
+# Overide user requested Memlimit if both rusage and memlimit are provided. Set memlimit to rusage * MFACT
+OVER=Y
+
+# If you do not want to reject jobs set below default memlimit DML and default mem reservation DMR
+DMR=1000
+DML=1250
+
 # If Rusage has mem defined get the memreservation and set the Mem Limit 25% more than rusage 
 # When Job uses more than 25% of what reserved job will be killed if Enforcement is enabled
 if [[ $LSB_SUB_RES_REQ == *"mem"* ]]; then
@@ -32,18 +45,31 @@ if [[ $LSB_SUB_RES_REQ == *"mem"* ]]; then
 		mem=${memstr%]*}
 	fi
 
-# If the 25 percent need to be modified change 1.25 to 1.xx as per required percentage settings
-mlimit=$(echo "$mem*1.25" | bc)
-mlimit=$(echo $mlimit | cut -d "." -f 1)
+	# If the 25 percent need to be modified change 1.25 to 1.xx as per required percentage settings
+	mlimit=$(echo "$mem*$MFACT" | bc)
+	mlimit=$(echo $mlimit | cut -d "." -f 1)
 
-# Updating modify file with the calculated Mem Limit
-echo 'LSB_SUB_RLIMIT_RSS='$mlimit > $LSB_SUB_MODIFY_FILE
+	# If both -M and -R provided and OVER setting is Y then make any changes 
+	# Updating modify file with the calculated Mem Limit
+	if [[ -z $LSB_SUB_RLIMIT_RSS ]]; then 
+		echo 'LSB_SUB_RLIMIT_RSS='$mlimit > $LSB_SUB_MODIFY_FILE
+	else 
+		if [[ $OVER == *"Y"* ]]; then 
+			echo 'LSB_SUB_RLIMIT_RSS='$mlimit > $LSB_SUB_MODIFY_FILE
+		fi
+	fi
 
 # If Memlimit is not set at this time rusage is also not set. A job without memlimit and rusage cannot run hence rejecting the submission
 elif [[ -z $LSB_SUB_RLIMIT_RSS ]]; then 
-	echo "No Memory Reservation or Memory Limit Specified. Rejecting Submission use bsub -M <Max Mem> and/or -R \"rusage[mem=<Max Mem>]\""
-	exit $LSB_SUB_ABORT_VALUE
+	if [[ $REJ == *"Y"* ]]; then 
+		echo "No Memory Reservation or Memory Limit Specified. Rejecting Submission use bsub -M <Max Mem> and/or -R \"rusage[mem=<Max Mem>]\""
+		exit $LSB_SUB_ABORT_VALUE
+	else 
+		echo 'LSB_SUB_RES_REQ="rusage[mem='$DMR']"' > $LSB_SUB_MODIFY_FILE
+		echo 'LSB_SUB_RLIMIT_RSS='$DML >> $LSB_SUB_MODIFY_FILE
+	fi
 
+# Rusage does not have mem provided. 
 # When Memlimit is given, at this time rusage may have been provided but it may not include mem reservation. 
 else 
 
@@ -60,7 +86,7 @@ else
 	fi
 
 # New mem limit is calculated at 25% of rusage or current mem limit 
-mlimit=$(echo "$LSB_SUB_RLIMIT_RSS*1.25" | bc)
+mlimit=$(echo "$LSB_SUB_RLIMIT_RSS*$MFACT" | bc)
 mlimit=$(echo $mlimit | cut -d "." -f 1)
 
 #Update modifications for LSF to take in effect
